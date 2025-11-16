@@ -1,0 +1,3 @@
+2025.11.16
+--------------
+This is the first step to change developing method ( File -> DB ).
