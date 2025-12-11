@@ -1,47 +1,50 @@
-# Stock Analytics Platform
+# Stock Analytics (Local, No Docker)
 
-FastAPI + MariaDB + React monorepo that ingests KOSPI/KOSDAQ market data, macro indicators, and keyword trends. The goal is to store sector/symbol-level timelines, overlay macro indicators, and later build predictive models.
+## ¿ä±¸»çÇ× ´ëÀÀ ÇöÈ² (1,2)
+- ¾÷Á¾/Á¾¸ñ: sectors, symbols Å×ÀÌºí ¹× CRUD API
+- ÀÏÀÏ µ¥ÀÌÅÍ: daily_prices Å×ÀÌºí (Á¾°¡, Á¾°¡Áõ°¨, °Å·¡·®, °Å·¡·®Áõ°¨, ¿Ü±¹ÀÎ/±â°ü/°³ÀÎ ¼ø¸Å¼ö)
+- upsert ·ÎÁ÷: µ¿ÀÏ symbol_id+trade_date ÀÔ·Â ½Ã ¾÷µ¥ÀÌÆ®
+- µ¨Å¸ °è»ê: `src/ingest.py` ÀÇ `compute_deltas`, `ingest_daily`
 
-## Repository Structure
+## ÆÄÀÏ
+- `src/db.py` : MariaDB ¿¬°á, Base, SessionLocal
+- `src/models.py` : SQLAlchemy ¸ðµ¨ (sectors, symbols, daily_prices)
+- `src/main.py` : FastAPI ¿£µåÆ÷ÀÎÆ® (sectors/symbols/prices)
+- `src/ingest.py` : µ¨Å¸ °è»ê ¹× bulk upsert ¿¹Á¦
 
-```
-stock_anal/
-â”œâ”€â”€ backend/        # FastAPI app, SQLAlchemy models, ETL placeholders
-â”œâ”€â”€ frontend/       # React (Vite) dashboard
-â”œâ”€â”€ docker-compose.yml
-â””â”€â”€ README.md
-```
+## MariaDB ½ºÅ°¸¶ (ÀÌ¹Ì ÄÚµå¿¡ ¹Ý¿µ)
+- sectors(id, name, market, description, slug)
+- symbols(id, ticker, name, market, isin, currency, sector_id FK)
+- daily_prices(id, symbol_id FK, trade_date, close, close_delta, volume, volume_delta, foreign_net, institutional_net, individual_net), UNIQUE(symbol_id, trade_date)
 
-## Quick Start
+## ½ÇÇà ¹æ¹ý (·ÎÄÃ MariaDB)
+1) MariaDB¿¡ µ¥ÀÌÅÍº£ÀÌ½º »ý¼º:
+   ```sql
+   CREATE DATABASE stock_analytics CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+   ```
+   °èÁ¤/ºñ¹Ð¹øÈ£¿¡ ¸Â°Ô `src/db.py` ÀÇ `DATABASE_URL` ¼öÁ¤ (¿¹: `mysql+pymysql://user:pass@localhost:3306/stock_analytics`).
+2) ÀÇÁ¸¼º ¼³Ä¡:
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   pip install fastapi uvicorn sqlalchemy pymysql
+   ```
+3) API ½ÇÇà:
+   ```bash
+   uvicorn src.main:app --reload
+   ```
+   Swagger: http://localhost:8000/docs
+4) »ç¿ë ¿¹½Ã:
+   - `POST /sectors` ·Î ¼½ÅÍ µî·Ï
+   - `POST /symbols` ·Î Á¾¸ñ µî·Ï
+   - `POST /prices` ·Î ÀÏÀÏ µ¥ÀÌÅÍ upsert (symbol_id+trade_date °íÀ¯)
+   - `GET /prices?symbol_id=1` ·Î Á¶È¸
+5) µ¨Å¸ °è»ê + ÀûÀç ¿¹Á¦:
+   ```bash
+   python -m src.ingest
+   ```
+   (ÄÚµå ³» sample_rows Âü°í; ½ÇÁ¦·Î´Â ¿ÜºÎ API µ¥ÀÌÅÍ·Î ±³Ã¼)
 
-1. Copy `backend/.env.example` to `backend/.env` and adjust the MariaDB credentials.
-2. Launch the stack:
-
-```bash
-docker compose up --build
-```
-
-Backend: http://localhost:8000/docs  
-Frontend: http://localhost:5173  
-MariaDB: localhost:3306 (user/pass `stock`/`stock`)
-
-## Backend Highlights
-
-- FastAPI w/ versioned routers under `app/api/v1`.
-- SQLAlchemy models capture: sectors, symbols, daily prices, indicators, indicator links, keyword stats, ingestion runs.
-- Services layer provides reusable upsert helpers for ETL jobs.
-- Pydantic Settings loads configuration from `.env`.
-- Future ETL jobs land in `app/ingestion`, ready for APScheduler/Celery integration.
-
-## Frontend Highlights
-
-- Vite + React + React Query for data fetching.
-- Routing scaffold for sector overview, symbol detail, indicator dashboard, and keyword placeholder.
-- Axios API client reading from `VITE_API_URL` (defaults to `/api/v1` when proxied).
-
-## Next Steps
-
-- Implement concrete ingestion pipelines (KRX, macro APIs, keyword feeds) that populate the MariaDB schema.
-- Add Alembic migrations + seed scripts.
-- Connect indicators to sectors/symbols with derived weights/correlations.
-- Extend the frontend with real charts (e.g., Recharts/ECharts) and filtering.
+## ´ÙÀ½ ´Ü°è
+- Alembic ¸¶ÀÌ±×·¹ÀÌ¼Ç Ãß°¡
+- °æÁ¦ÁöÇ¥/È¯À² Å×ÀÌºí ¹× API È®Àå (¿ä±¸ 3), ¿µÇâµµ/¸ðµ¨¸µ ·ÎÁ÷ (¿ä±¸ 4)
